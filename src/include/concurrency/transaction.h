@@ -24,9 +24,9 @@
 #include "type/types.h"
 
 // [CMSC724] Add a flag to RLU support
-/*
+
 #define RLU_CONCURRENCY 1
-*/
+
 
 namespace peloton {
 namespace concurrency {
@@ -58,9 +58,9 @@ class Transaction : public Printable {
     thread_id_ = thread_id;
 
 #if defined(RLU_CONCURRENCY)
-    local_clk_;
-    write_clk_;
-    write_lock_;
+    local_clk_ = begin_cid;
+    write_clk_ = MAX_CID;
+    write_lock_ = 0;
 #endif
     
     declared_readonly_ = readonly;
@@ -92,7 +92,7 @@ class Transaction : public Printable {
 
   inline txn_id_t GetWriteClock() const { return write_clk_; }
 
-  inline void SetWriteClock(txn_id_ clk) const { write_clk_ = clk; }
+  inline void SetWriteClock(txn_id_t clk) { write_clk_ = clk; }
 
   inline bool IsLocked() const { return write_lock_ != 0; }
 #endif

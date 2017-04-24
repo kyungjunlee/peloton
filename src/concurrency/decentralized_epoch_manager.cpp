@@ -29,8 +29,12 @@ namespace concurrency {
       bool rt = local_epochs_.at(thread_id)->EnterEpoch(epoch_id);
       // if successfully enter local epoch
       if (rt == true) {
-    
+
+#if defined(RLU_CONCURRENCY)
+        uint32_t next_txn_id = GetCurrentTransactionId();
+#else    
         uint32_t next_txn_id = GetNextTransactionId();
+#endif
 
         return (epoch_id << 32) | next_txn_id;
       }
