@@ -115,6 +115,12 @@ private:
     return next_txn_id_.fetch_add(1, std::memory_order_relaxed);
   }
 
+  #if defined(RLU_CONCURRENCY)
+  inline uint32_t GetCurrentTransactionId() {
+    return next_txn_id_.fetch_add(0, std::memory_order_relaxed);
+  }
+  #endif
+
 
   void Running() {
 

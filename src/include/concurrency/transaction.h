@@ -23,6 +23,11 @@
 #include "common/printable.h"
 #include "type/types.h"
 
+// [CMSC724] Add a flag to RLU support
+
+#define RLU_CONCURRENCY 1
+
+
 namespace peloton {
 namespace concurrency {
 
@@ -51,6 +56,12 @@ class Transaction : public Printable {
     txn_id_ = begin_cid;
     begin_cid_ = begin_cid;
     thread_id_ = thread_id;
+
+#if defined(RLU_CONCURRENCY)
+    local_clk_ = begin_cid;
+    write_clk_ = MAX_CID;
+    write_lock_ = 0;
+#endif
     
     declared_readonly_ = readonly;
 
@@ -75,6 +86,17 @@ class Transaction : public Printable {
   inline cid_t GetEndCommitId() const { return end_cid_; }
 
   inline void SetEndCommitId(cid_t eid) { end_cid_ = eid; }
+
+#if defined(RLU_CONCURRENCY)
+  inline txn_id_t GetLocalClock() const { return local_clk_; }
+
+  inline txn_id_t GetWriteClock() const { return write_clk_; }
+
+  inline void SetWriteClock(txn_id_t clk) { write_clk_ = clk; }
+
+  inline bool IsLocked() const { return write_lock_ != 0; }
+#endif
+
 
   void RecordRead(const ItemPointer &);
 
@@ -129,6 +151,17 @@ class Transaction : public Printable {
 
   // end commit id
   cid_t end_cid_;
+
+#if defined(RLU_CONCURRENCY)
+  // local clock
+  txn_id_t local_clk_;
+
+  // write clock
+  txn_id_t write_clk_;
+
+  // write lock
+  txn_id_t write_lock_;
+#endif
 
   ReadWriteSet rw_set_;
 
