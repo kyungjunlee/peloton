@@ -93,7 +93,17 @@ Transaction *TimestampOrderingTransactionManager::BeginTransaction(const size_t 
 
   // transaction processing with centralized epoch manager
   cid_t begin_cid = EpochManagerFactory::GetInstance().EnterEpoch(thread_id);
+
+#if defined(RLU_CONCURRENCY)
+
+  cid_t current_clk = EpochManagerFactory::GetInstance().GetCurrentClock();
+  txn = new Transaction(begin_cid, thread_id, false, current_clk);
+
+#else
+
   txn = new Transaction(begin_cid, thread_id);
+
+#endif
 
   if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
     stats::BackendStatsContext::GetInstance()

@@ -35,6 +35,9 @@ public:
   DecentralizedEpochManager() : 
     current_global_epoch_(1), 
     next_txn_id_(0),
+#if defined(RLU_CONCURRENCY)
+    current_global_clk_(1),
+#endif
     current_global_epoch_ro_(1),
     is_running_(false) {
       // register a default thread for handling catalog stuffs.
@@ -93,6 +96,11 @@ public:
 
   virtual void ExitEpoch(const size_t thread_id, const cid_t begin_cid) override;
 
+#if defined(RLU_CONCURRENCY)
+  // get the current global clock
+  virtual cid_t GetCurrentClock() override;
+
+#endif
 
   virtual cid_t GetMaxCommittedCid() override {
     uint64_t max_committed_eid = GetMaxCommittedEpochId();
@@ -115,11 +123,21 @@ private:
     return next_txn_id_.fetch_add(1, std::memory_order_relaxed);
   }
 
-  #if defined(RLU_CONCURRENCY)
+#if defined(RLU_CONCURRENCY)
+
   inline uint32_t GetCurrentTransactionId() {
     return next_txn_id_.fetch_add(0, std::memory_order_relaxed);
   }
-  #endif
+
+  inline uint32_t GetNextGlobalClock() {
+    return current_global_clk_.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  inline uint32_t GetCurrentGlobalClock() {
+    return current_global_clk_.fetch_add(0, std::memory_order_relaxed);
+  }
+
+#endif
 
 
   void Running() {
@@ -143,6 +161,10 @@ private:
   // the global epoch reflects the true time of the system.
   std::atomic<uint64_t> current_global_epoch_;
   std::atomic<uint32_t> next_txn_id_;
+
+#if defined(RLU_CONCURRENCY)
+  std::atomic<uint32_t> current_global_clk_;
+#endif
   
   uint64_t current_global_epoch_ro_;
 

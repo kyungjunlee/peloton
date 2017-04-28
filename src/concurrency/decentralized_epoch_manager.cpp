@@ -29,17 +29,18 @@ namespace concurrency {
       bool rt = local_epochs_.at(thread_id)->EnterEpoch(epoch_id);
       // if successfully enter local epoch
       if (rt == true) {
-
-#if defined(RLU_CONCURRENCY)
-        uint32_t next_txn_id = GetCurrentTransactionId();
-#else    
         uint32_t next_txn_id = GetNextTransactionId();
-#endif
 
         return (epoch_id << 32) | next_txn_id;
       }
     }
   }
+
+#if defined(RLU_CONCURRENCY)
+  cid_t DecentralizedEpochManager::GetCurrentClock() {
+    return GetCurrentGlobalClock();
+  }
+#endif
 
   // enter epoch with thread id
   cid_t DecentralizedEpochManager::EnterEpochRO(const size_t thread_id) {

@@ -53,6 +53,12 @@ public:
 
   virtual uint64_t GetMaxCommittedEpochId() = 0;
 
+#if defined(RLU_CONCURRENCY)
+  // get the current global clock
+  virtual cid_t GetCurrentClock() = 0;
+#endif
+
+
 };
 
 }

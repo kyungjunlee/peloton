@@ -25,7 +25,7 @@
 
 // [CMSC724] Add a flag to RLU support
 
-#define RLU_CONCURRENCY 1
+// #define RLU_CONCURRENCY 1
 
 
 namespace peloton {
@@ -48,6 +48,12 @@ class Transaction : public Printable {
     Init(begin_cid, thread_id, ro);
   }
 
+#if defined(RLU_CONCURRENCY)
+  Transaction(const cid_t &begin_cid, const size_t thread_id, bool ro, const cid_t clk) {
+    Init(begin_cid, thread_id, ro, clk);
+  }
+#endif
+
   ~Transaction() {}
 
  private:
@@ -57,11 +63,23 @@ class Transaction : public Printable {
     begin_cid_ = begin_cid;
     thread_id_ = thread_id;
 
+    declared_readonly_ = readonly;
+
+    end_cid_ = MAX_CID;
+    is_written_ = false;
+    insert_count_ = 0;
+    gc_set_.reset(new GCSet());
+  }
+
 #if defined(RLU_CONCURRENCY)
-    local_clk_ = begin_cid;
+  void Init(const cid_t &begin_cid, const size_t thread_id, const bool readonly, const cid_t clk) {
+    txn_id_ = begin_cid;
+    begin_cid_ = begin_cid;
+    thread_id_ = thread_id;
+
+    local_clk_ = clk;
     write_clk_ = MAX_CID;
     write_lock_ = 0;
-#endif
     
     declared_readonly_ = readonly;
 
@@ -70,6 +88,7 @@ class Transaction : public Printable {
     insert_count_ = 0;
     gc_set_.reset(new GCSet());
   }
+#endif
 
 
  public:
