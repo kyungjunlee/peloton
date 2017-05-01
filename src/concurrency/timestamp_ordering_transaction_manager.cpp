@@ -920,6 +920,15 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
 
   ResultType result = current_txn->GetResult();
 
+#if defined(RLU_CONCURRENCY)
+  if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
+    // increment a global clock
+    cid_t new_clk = EpochManagerFactory::GetInstance().GetNextGlobalClock();
+    // increment a write clock
+    current_txn->SetWriteClock(new_clk);
+  }
+#endif
+
   EndTransaction(current_txn);
 
   // Increment # txns committed metric
