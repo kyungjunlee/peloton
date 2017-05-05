@@ -37,8 +37,12 @@ namespace concurrency {
   }
 
 #if defined(RLU_CONCURRENCY)
-  cid_t DecentralizedEpochManager::GetCurrentClock() {
-    return GetCurrentGlobalClock();
+  cid_t DecentralizedEpochManager::GetCurrentGlobalClock() {
+    return GetCurrentClock();
+  }
+
+  cit_t DecentralizedEpochManager::GetNextGlobalClock() {
+    return GetNextClock();
   }
 #endif
 

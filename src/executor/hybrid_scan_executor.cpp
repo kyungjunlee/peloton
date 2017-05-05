@@ -362,6 +362,10 @@ bool HybridScanExecutor::ExecPrimaryIndexLookup() {
       concurrency::TransactionManagerFactory::GetInstance();
 
   auto current_txn = executor_context_->GetTransaction();
+#if defined(RLU_CONCURRENCY)
+  // get a local clock of current transaction
+  cid_t txn_local_clk = current_txn->GetLocalClock();
+#endif
 
   if (tuple_location_ptrs.size() == 0) {
     index_done_ = true;
@@ -382,6 +386,11 @@ bool HybridScanExecutor::ExecPrimaryIndexLookup() {
     auto &manager = catalog::Manager::GetInstance();
     auto tile_group = manager.GetTileGroup(tuple_location.block);
     auto tile_group_header = tile_group.get()->GetHeader();
+#if defined(RLU_CONCURRENCY)
+    auto temp_tile_group = manager.GetTileGroup(tuple_location.block);
+    auto temp_tile_group_header = tile_group.get()->GetHeader();
+    cid_t tuple_write_clk;
+#endif
 
     // perform transaction read
     size_t chain_length = 0;
@@ -406,8 +415,46 @@ bool HybridScanExecutor::ExecPrimaryIndexLookup() {
         cid_t old_end_cid = tile_group_header->GetEndCommitId(old_item.offset);
 
         tuple_location = tile_group_header->GetNextItemPointer(old_item.offset);
+
+#if defined(RLU_CONCURRENCY)
+        if(tuple_location.IsNull()) {
+          // check the old tile group
+          temp_tile_group = manager.GetTileGroup(old_item.block);
+          temp_tile_group_header = temp_tile_group.get()->GetHeader();
+          tuple_write_clk = temp_tile_group_header->GetWriteClock(old_item.offset);
+          if(tuple_write_clk < txn_local_clk) {
+            visible_tuples[old_item.block].push_back(old_item.offset);
+            auto res = transaction_manager.PerformRead(current_txn, old_item,
+                                                       acquire_owner);
+            if (!res) {
+              transaction_manager.SetTransactionResult(current_txn,
+                                                       ResultType::FAILURE);
+              return res;
+            }
+            break;
+          }
+
+        } else {
+          // check the next tile group
+          temp_tile_group = manager.GetTileGroup(tuple_location.block);
+          temp_tile_group_header = temp_tile_group.get()->GetHeader();
+          tuple_write_clk = temp_tile_group_header->GetWriteClock(tuple_location.offset);
+          if(tuple_write_clk == MAX_CID || tuple_write_clk > txn_local_clk) {
+            visible_tuples[old_item.block].push_back(old_item.offset);
+            auto res = transaction_manager.PerformRead(current_txn, old_item,
+                                                       acquire_owner);
+            if (!res) {
+              transaction_manager.SetTransactionResult(current_txn,
+                                                       ResultType::FAILURE);
+              return res;
+            }
+            break;
+          }
+        }
+#else
         // there must exist a visible version.
         assert(tuple_location.IsNull() == false);
+#endif
 
         cid_t max_committed_cid = transaction_manager.GetMaxCommittedCid();
 

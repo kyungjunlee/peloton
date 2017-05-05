@@ -16,6 +16,10 @@
 #include <string>
 #include "serializeio.h"
 
+// [CMSC724] Add a flag to RLU support
+// TODO: turn it off to go back to the original Peloton
+#define RLU_CONCURRENCY 1
+
 namespace peloton {
 namespace type {
 

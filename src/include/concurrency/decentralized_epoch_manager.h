@@ -98,7 +98,9 @@ public:
 
 #if defined(RLU_CONCURRENCY)
   // get the current global clock
-  virtual cid_t GetCurrentClock() override;
+  virtual cid_t GetCurrentGlobalClock() override;
+
+  virtual cid_t GetNextGlobalClock() override;
 
 #endif
 
@@ -129,11 +131,11 @@ private:
     return next_txn_id_.fetch_add(0, std::memory_order_relaxed);
   }
 
-  inline uint32_t GetNextGlobalClock() {
+  inline uint32_t GetNextClock() {
     return current_global_clk_.fetch_add(1, std::memory_order_relaxed);
   }
 
-  inline uint32_t GetCurrentGlobalClock() {
+  inline uint32_t GetCurrentClock() {
     return current_global_clk_.fetch_add(0, std::memory_order_relaxed);
   }
 

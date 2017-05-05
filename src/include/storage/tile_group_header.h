@@ -159,8 +159,8 @@ class TileGroupHeader : public Printable {
   }
 
   #if defined(RLU_CONCURRENCY)
-    inline void GetWriteClock(const oid_t &tuple_slot_id) const {
-      return *((cid_t *) (TUPLE_HEADER_LOCATION + write_cid_offset)) = write_cid;
+    inline cid_t GetWriteClock(const oid_t &tuple_slot_id) const {
+      return *((cid_t *) (TUPLE_HEADER_LOCATION + write_cid_offset));
     }
   #endif
 

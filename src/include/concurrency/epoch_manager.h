@@ -55,7 +55,9 @@ public:
 
 #if defined(RLU_CONCURRENCY)
   // get the current global clock
-  virtual cid_t GetCurrentClock() = 0;
+  virtual cid_t GetCurrentGlobalClock() = 0;
+  // get the next global clock
+  virtual cid_t GetNextGlobalClock() = 0;
 #endif
 
 

@@ -23,11 +23,6 @@
 #include "common/printable.h"
 #include "type/types.h"
 
-// [CMSC724] Add a flag to RLU support
-
-// #define RLU_CONCURRENCY 1
-
-
 namespace peloton {
 namespace concurrency {
 

@@ -279,13 +279,23 @@ VisibilityType TimestampOrderingTransactionManager::IsVisible(
   cid_t tuple_begin_cid = tile_group_header->GetBeginCommitId(tuple_id);
   cid_t tuple_end_cid = tile_group_header->GetEndCommitId(tuple_id);
   oid_t tile_group_id = tile_group_header->GetTileGroup()->GetTileGroupId();
+#if defined(RLU_CONCURRENCY)
+  cid_t tuple_write_clk = tile_group_header->GetWriteClock(tuple_id);
+#endif
 
   // the tuple has already been owned by the current transaction.
   bool own = (current_txn->GetTransactionId() == tuple_txn_id);
+#if defined(RLU_CONCURRENCY)
+  // the tuple has already been committed.
+  bool activated = (current_txn->GetLocalClock() >= tuple_write_clk);
+  // the tuple is not visible.
+  bool invalidated = (current_txn->GetLocalClock() > tuple_write_clk);
+#else
   // the tuple has already been committed.
   bool activated = (current_txn->GetBeginCommitId() >= tuple_begin_cid);
   // the tuple is not visible.
   bool invalidated = (current_txn->GetBeginCommitId() >= tuple_end_cid);
+#endif
 
   if (tuple_txn_id == INVALID_TXN_ID || CidIsInDirtyRange(tuple_begin_cid)) {
     // the tuple is not available.
@@ -298,6 +308,51 @@ VisibilityType TimestampOrderingTransactionManager::IsVisible(
     }
   }
 
+#if defined(RLU_CONCURRENCY)
+  // there are exactly two versions that can be owned by a transaction,
+  // unless it is an insertion/select-for-update
+  if (own == true) {
+    if (tuple_begin_cid == MAX_CID && tuple_end_cid != INVALID_CID) {
+      PL_ASSERT(tuple_end_cid == MAX_CID);
+      // the only version that is visible is the newly inserted/updated one.
+      return VisibilityType::OK;
+    } else if (current_txn->GetRWType(ItemPointer(tile_group_id, tuple_id)) ==
+               RWType::READ_OWN) {
+      // the ownership is from a select-for-update read operation
+      return VisibilityType::OK;
+    } else if (tuple_end_cid == INVALID_CID) {
+      // tuple being deleted by current txn
+      return VisibilityType::DELETED;
+    } else {
+      // old version of the tuple that is being updated by current txn
+      return VisibilityType::INVISIBLE;
+    }
+  } else {
+    if (tuple_txn_id != INITIAL_TXN_ID) {
+      // if the tuple is owned by other transactions.
+      if (tuple_write_clk == MAX_CID) {
+        // in this protocol, we do not allow cascading abort. so never read an
+        // uncommitted version.
+        return VisibilityType::INVISIBLE;
+      } else {
+        // the older version may be visible.
+        if (activated && !invalidated) {
+          return VisibilityType::OK;
+        } else {
+          return VisibilityType::INVISIBLE;
+        }
+      }
+    } else {
+      // if the tuple is not owned by any transaction.
+      if (activated && !invalidated) {
+        return VisibilityType::OK;
+      } else {
+        return VisibilityType::INVISIBLE;
+      }
+    }
+  }
+
+#else
   // there are exactly two versions that can be owned by a transaction,
   // unless it is an insertion/select-for-update
   if (own == true) {
@@ -340,6 +395,8 @@ VisibilityType TimestampOrderingTransactionManager::IsVisible(
       }
     }
   }
+#endif
+
 }
 
 // check whether the current transaction owns the tuple.
@@ -486,6 +543,7 @@ bool TimestampOrderingTransactionManager::PerformRead(
         stats::BackendStatsContext::GetInstance()->IncrementTableReads(
           location.block);
       }
+      return true;
     #else
       LOG_TRACE("Transaction read failed");
     return false;
