@@ -119,8 +119,12 @@ Transaction *TimestampOrderingTransactionManager::BeginReadonlyTransaction(const
 
   // transaction processing with centralized epoch manager
   cid_t begin_cid = EpochManagerFactory::GetInstance().EnterEpochRO(thread_id);
+  #if defined(RLU_CONCURRENCY)
+  cid_t clk = EpochManagerFactory::GetInstance().GetCurrentClock();
+  txn = new Transaction(begin_cid, thread_id, true, clk);
+  #else
   txn = new Transaction(begin_cid, thread_id, true);
-
+  #endif
   if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
     stats::BackendStatsContext::GetInstance()
         ->GetTxnLatencyMetric()
@@ -940,6 +944,13 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
   return result;
 }
 
+#if defined(RLU_CONCURRENCY) 
+  ResultType TimestampOrderingTransactionManager::AbortTransaction(
+    Transaction *const current_txn) {
+    return ResultType::ABORTED;
+  }
+#else
+
 ResultType TimestampOrderingTransactionManager::AbortTransaction(
     Transaction *const current_txn) {
   // It's impossible that a pre-declared readonly transaction aborts
@@ -1122,6 +1133,7 @@ ResultType TimestampOrderingTransactionManager::AbortTransaction(
 
   return ResultType::ABORTED;
 }
+#endif
 
 }  // End storage namespace
 }  // End peloton namespace
