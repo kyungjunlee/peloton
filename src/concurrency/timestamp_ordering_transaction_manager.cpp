@@ -481,8 +481,15 @@ bool TimestampOrderingTransactionManager::PerformRead(
   } else {
     // if the tuple has been owned by some concurrent transactions, then read
     // fails.
-    LOG_TRACE("Transaction read failed");
+    #if defined(RLU_CONCURRENCY)
+      if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
+        stats::BackendStatsContext::GetInstance()->IncrementTableReads(
+          location.block);
+      }
+    #else
+      LOG_TRACE("Transaction read failed");
     return false;
+    #endif
   }
 }
 
@@ -906,6 +913,10 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
         tile_group_header->SetBeginCommitId(tuple_slot, end_commit_id);
         tile_group_header->SetEndCommitId(tuple_slot, MAX_CID);
 
+        #if defined(RLU_CONCURRENCY)
+          new_tile_group_header->SetWriteClock(new_version.offset, new_clk);
+        #endif
+
         // we should set the version before releasing the lock.
         COMPILER_MEMORY_FENCE;
 
@@ -923,6 +934,10 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
 
         tile_group_header->SetBeginCommitId(tuple_slot, MAX_CID);
         tile_group_header->SetEndCommitId(tuple_slot, MAX_CID);
+
+        #if defined(RLU_CONCURRENCY)
+          new_tile_group_header->SetWriteClock(new_version.offset, new_clk);
+        #endif
 
         // we should set the version before releasing the lock.
         COMPILER_MEMORY_FENCE;
