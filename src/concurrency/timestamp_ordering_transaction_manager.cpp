@@ -119,12 +119,14 @@ Transaction *TimestampOrderingTransactionManager::BeginReadonlyTransaction(const
 
   // transaction processing with centralized epoch manager
   cid_t begin_cid = EpochManagerFactory::GetInstance().EnterEpochRO(thread_id);
+
   #if defined(RLU_CONCURRENCY)
   cid_t clk = EpochManagerFactory::GetInstance().GetCurrentClock();
   txn = new Transaction(begin_cid, thread_id, true, clk);
   #else
   txn = new Transaction(begin_cid, thread_id, true);
   #endif
+
   if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
     stats::BackendStatsContext::GetInstance()
         ->GetTxnLatencyMetric()
@@ -465,7 +467,7 @@ bool TimestampOrderingTransactionManager::PerformRead(
     }
     return true;
   }
-  // if the current transaction does not own this tuple, then attemp to set last
+  // if the current transaction does not own this tuple, then attempt to set last
   // reader cid.
   if (SetLastReaderCommitId(tile_group_header, tuple_id,
                             current_txn->GetBeginCommitId()) == true) {
@@ -803,6 +805,12 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
   // 1. install a new version for update operations;
   // 2. install an empty version for delete operations;
   // 3. install a new tuple for insert operations.
+  #if defined(RLU_CONCURRENCY)
+  if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
+    // increment a global clock
+    cid_t new_clk = EpochManagerFactory::GetInstance().GetNextGlobalClock();
+  }
+  #endif
   for (auto &tile_group_entry : rw_set) {
     oid_t tile_group_id = tile_group_entry.first;
     auto tile_group = manager.GetTileGroup(tile_group_id);
@@ -829,6 +837,10 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
         new_tile_group_header->SetBeginCommitId(new_version.offset,
                                                 end_commit_id);
         new_tile_group_header->SetEndCommitId(new_version.offset, cid);
+
+        #if defined(RLU_CONCURRENCY)
+          new_tile_group_header->SetWriteClock(new_version.offset, new_clk);
+        #endif
 
         COMPILER_MEMORY_FENCE;
 
@@ -859,6 +871,10 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
         new_tile_group_header->SetBeginCommitId(new_version.offset,
                                                 end_commit_id);
         new_tile_group_header->SetEndCommitId(new_version.offset, cid);
+
+        #if defined(RLU_CONCURRENCY)
+          new_tile_group_header->SetWriteClock(new_version.offset, new_clk);
+        #endif
 
         COMPILER_MEMORY_FENCE;
 
@@ -923,15 +939,6 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
   }
 
   ResultType result = current_txn->GetResult();
-
-#if defined(RLU_CONCURRENCY)
-  if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
-    // increment a global clock
-    cid_t new_clk = EpochManagerFactory::GetInstance().GetNextGlobalClock();
-    // increment a write clock
-    current_txn->SetWriteClock(new_clk);
-  }
-#endif
 
   EndTransaction(current_txn);
 
