@@ -40,7 +40,7 @@ namespace concurrency {
     return GetCurrentClock();
   }
 
-  cit_t DecentralizedEpochManager::GetNextGlobalClock() {
+  cid_t DecentralizedEpochManager::GetNextGlobalClock() {
     return GetNextClock();
   }
 #endif

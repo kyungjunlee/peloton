@@ -96,7 +96,7 @@ Transaction *TimestampOrderingTransactionManager::BeginTransaction(const size_t 
 
 #if defined(RLU_CONCURRENCY)
 
-  cid_t current_clk = EpochManagerFactory::GetInstance().GetCurrentClock();
+  cid_t current_clk = EpochManagerFactory::GetInstance().GetCurrentGlobalClock();
   txn = new Transaction(begin_cid, thread_id, false, current_clk);
 
 #else
@@ -121,7 +121,7 @@ Transaction *TimestampOrderingTransactionManager::BeginReadonlyTransaction(const
   cid_t begin_cid = EpochManagerFactory::GetInstance().EnterEpochRO(thread_id);
 
   #if defined(RLU_CONCURRENCY)
-  cid_t clk = EpochManagerFactory::GetInstance().GetCurrentClock();
+  cid_t clk = EpochManagerFactory::GetInstance().GetCurrentGlobalClock();
   txn = new Transaction(begin_cid, thread_id, true, clk);
   #else
   txn = new Transaction(begin_cid, thread_id, true);
@@ -871,9 +871,10 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
   // 2. install an empty version for delete operations;
   // 3. install a new tuple for insert operations.
   #if defined(RLU_CONCURRENCY)
+  cid_t new_clk = MAX_CID;
   if (FLAGS_stats_mode != STATS_TYPE_INVALID) {
     // increment a global clock
-    cid_t new_clk = EpochManagerFactory::GetInstance().GetNextGlobalClock();
+    new_clk = EpochManagerFactory::GetInstance().GetNextGlobalClock();
   }
   #endif
   for (auto &tile_group_entry : rw_set) {
@@ -1024,6 +1025,7 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
   return result;
 }
 
+/* NOTE: I think we should not change this function and leave as it is
 #if defined(RLU_CONCURRENCY) 
   ResultType TimestampOrderingTransactionManager::AbortTransaction(
     Transaction *const current_txn) {
@@ -1031,6 +1033,7 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
     return ResultType::ABORTED;
   }
 #else
+*/
 
 ResultType TimestampOrderingTransactionManager::AbortTransaction(
     Transaction *const current_txn) {
@@ -1214,7 +1217,7 @@ ResultType TimestampOrderingTransactionManager::AbortTransaction(
 
   return ResultType::ABORTED;
 }
-#endif
+//#endif
 
 }  // End storage namespace
 }  // End peloton namespace
