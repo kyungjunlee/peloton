@@ -12,7 +12,6 @@
 
 #include "concurrency/decentralized_epoch_manager.h"
 
-
 namespace peloton {
 namespace concurrency {
 

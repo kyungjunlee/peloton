@@ -972,7 +972,7 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
         tile_group_header->SetEndCommitId(tuple_slot, MAX_CID);
 
         #if defined(RLU_CONCURRENCY)
-          new_tile_group_header->SetWriteClock(new_version.offset, new_clk);
+          tile_group_header->SetWriteClock(tuple_slot, new_clk);
         #endif
 
         // we should set the version before releasing the lock.
@@ -994,7 +994,7 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
         tile_group_header->SetEndCommitId(tuple_slot, MAX_CID);
 
         #if defined(RLU_CONCURRENCY)
-          new_tile_group_header->SetWriteClock(new_version.offset, new_clk);
+          tile_group_header->SetWriteClock(tuple_slot, new_clk);
         #endif
 
         // we should set the version before releasing the lock.
@@ -1027,6 +1027,7 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
 #if defined(RLU_CONCURRENCY) 
   ResultType TimestampOrderingTransactionManager::AbortTransaction(
     Transaction *const current_txn) {
+    PL_ASSERT(current_txn->IsDeclaredReadOnly() == false);
     return ResultType::ABORTED;
   }
 #else

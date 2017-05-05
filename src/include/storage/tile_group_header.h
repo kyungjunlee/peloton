@@ -23,7 +23,7 @@
 #include "common/platform.h"
 #include "common/printable.h"
 #include "type/types.h"
-
+#define RLU_CONCURRENCY 1
 namespace peloton {
 namespace storage {
 
