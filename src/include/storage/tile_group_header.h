@@ -158,6 +158,12 @@ class TileGroupHeader : public Printable {
     return *((cid_t *)(TUPLE_HEADER_LOCATION + end_cid_offset));
   }
 
+  #if defined(RLU_CONCURRENCY)
+    inline void GetWriteClock(const oid_t &tuple_slot_id) const {
+      return *((cid_t *) (TUPLE_HEADER_LOCATION + write_cid_offset)) = write_cid;
+    }
+  #endif
+
   inline ItemPointer GetNextItemPointer(const oid_t &tuple_slot_id) const {
     return *((ItemPointer *)(TUPLE_HEADER_LOCATION + next_pointer_offset));
   }
@@ -194,6 +200,13 @@ class TileGroupHeader : public Printable {
                              const cid_t &end_cid) const {
     *((cid_t *)(TUPLE_HEADER_LOCATION + end_cid_offset)) = end_cid;
   }
+
+  #if defined(RLU_CONCURRENCY)
+    inline void SetWriteClock(const oid_t &tuple_slot_id,
+                              const cid_t &write_cid) const {
+      *((cid_t *) (TUPLE_HEADER_LOCATION + write_cid_offset)) = write_cid;
+    }
+  #endif
 
   inline void SetNextItemPointer(const oid_t &tuple_slot_id,
                                  const ItemPointer &item) const {
@@ -245,15 +258,26 @@ class TileGroupHeader : public Printable {
 
   // header entry size is the size of the layout described above
   static const size_t reserved_size = 16;
+  #if defined(RLU_CONCURRENCY)
+  static const size_t header_entry_size = sizeof(txn_id_t) + 3 * sizeof(cid_t) +
+                                          2 * sizeof(ItemPointer) +
+                                          sizeof(ItemPointer *) + reserved_size;
+  #else
   static const size_t header_entry_size = sizeof(txn_id_t) + 2 * sizeof(cid_t) +
                                           2 * sizeof(ItemPointer) +
                                           sizeof(ItemPointer *) + reserved_size;
+  #endif                                      
   static const size_t txn_id_offset = 0;
   static const size_t begin_cid_offset = txn_id_offset + sizeof(txn_id_t);
   static const size_t end_cid_offset = begin_cid_offset + sizeof(cid_t);
   static const size_t next_pointer_offset = end_cid_offset + sizeof(cid_t);
-  static const size_t prev_pointer_offset =
+  #if defined(RLU_CONCURRENCY)
+    static const size_t write_cid_offset = next_pointer_offset + sizeof(cid_t);
+    static const size_t prev_pointer_offset = write_cid_offset + sizeof(ItemPointer);
+  #else
+    static const size_t prev_pointer_offset =
       next_pointer_offset + sizeof(ItemPointer);
+  #endif
   static const size_t indirection_offset =
       prev_pointer_offset + sizeof(ItemPointer);
   static const size_t reserved_field_offset =
