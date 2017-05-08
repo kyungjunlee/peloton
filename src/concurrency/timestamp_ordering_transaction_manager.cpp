@@ -279,17 +279,17 @@ VisibilityType TimestampOrderingTransactionManager::IsVisible(
   cid_t tuple_begin_cid = tile_group_header->GetBeginCommitId(tuple_id);
   cid_t tuple_end_cid = tile_group_header->GetEndCommitId(tuple_id);
   oid_t tile_group_id = tile_group_header->GetTileGroup()->GetTileGroupId();
-#if defined(RLU_CONCURRENCY)
+#if defined(RLU_CONCURRENCY_COMMENT)
   cid_t tuple_write_clk = tile_group_header->GetWriteClock(tuple_id);
 #endif
 
   // the tuple has already been owned by the current transaction.
   bool own = (current_txn->GetTransactionId() == tuple_txn_id);
-#if defined(RLU_CONCURRENCY)
+#if defined(RLU_CONCURRENCY_COMMENT)
   // the tuple has already been committed.
-  bool activated = (current_txn->GetLocalClock() >= tuple_write_clk);
+  bool activated = (current_txn->GetBeginCommitId() >= tuple_begin_cid);
   // the tuple is not visible.
-  bool invalidated = (current_txn->GetLocalClock() > tuple_write_clk);
+  bool invalidated = (current_txn->GetBeginCommitId() >= tuple_end_cid);
 #else
   // the tuple has already been committed.
   bool activated = (current_txn->GetBeginCommitId() >= tuple_begin_cid);
@@ -308,7 +308,7 @@ VisibilityType TimestampOrderingTransactionManager::IsVisible(
     }
   }
 
-#if defined(RLU_CONCURRENCY)
+#if defined(RLU_CONCURRENCY_COMMENT)
   // there are exactly two versions that can be owned by a transaction,
   // unless it is an insertion/select-for-update
   if (own == true) {
@@ -1026,7 +1026,7 @@ ResultType TimestampOrderingTransactionManager::CommitTransaction(
 }
 
 /* NOTE: I think we should not change this function and leave as it is
-#if defined(RLU_CONCURRENCY) 
+#if defined(RLU_CONCURRENCY_COMMENT) 
   ResultType TimestampOrderingTransactionManager::AbortTransaction(
     Transaction *const current_txn) {
     PL_ASSERT(current_txn->IsDeclaredReadOnly() == false);
