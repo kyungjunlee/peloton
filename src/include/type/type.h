@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <string>
 #include "serializeio.h"
-#define RLU_CONCURRENCY 1
 
 // [CMSC724] Add a flag to RLU support
 // TODO: turn it off to go back to the original Peloton
